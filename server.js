@@ -18,6 +18,11 @@ app.use(express.json());
 
 mongoose.connect(process.env.mongoURL);
 
+app.get("/", (req, res) => {
+  const randomNumber = Math.random();
+  res.status(200).json({ random: randomNumber });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/board", authMiddleware, boardRoutes);
 
