@@ -80,33 +80,39 @@ router.post('/task', async (req, res) => {
 });
 
 // Update a task (full update)
+// Update task's listId on drag-and-drop
 router.put('/task/:id', async (req, res) => {
   try {
-    const { title, description, dueDate, priority, listId } = req.body;
+    const { listId } = req.body;
     const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // If moving to a new list
     if (listId && listId !== task.listId.toString()) {
+      // Remove from old list
       const oldList = await List.findById(task.listId);
-      const newList = await List.findById(listId);
-      if (!newList) return res.status(404).json({ message: 'Destination list not found' });
+      if (oldList) {
+        oldList.tasks = oldList.tasks.filter((id) => id.toString() !== task._id.toString());
+        await oldList.save();
+      }
 
-      oldList.tasks = oldList.tasks.filter((id) => id.toString() !== task._id.toString());
-      newList.tasks.push(task._id);
-      await Promise.all([oldList.save(), newList.save()]);
+      // Add to new list
+      const newList = await List.findById(listId);
+      if (newList) {
+        newList.tasks.push(task._id);
+        await newList.save();
+      }
+
+      // Update task
+      task.listId = listId;
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      { title, description, dueDate, priority, listId },
-      { new: true }
-    );
-    res.json(updatedTask);
+    await task.save();
+    res.json(task);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating task', error });
+    res.status(500).json({ message: "Error updating task", error });
   }
 });
+
 
 // Delete a task
 router.delete('/task/:id', async (req, res) => {
